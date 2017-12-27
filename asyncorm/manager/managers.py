@@ -5,7 +5,7 @@ from ..exceptions import (
     ModelDoesNotExist, ModelError, MultipleObjectsReturned, QuerysetError,
 )
 
-from ..models.fields import ManyToManyField, ForeignKey, CharField, NumberField
+from ..models.fields import ManyToManyField, ForeignKey, CharField, NumberField, ArrayField
 from ..database import Cursor
 
 
@@ -341,7 +341,9 @@ class Queryset(object):
                     raise QuerysetError('{} not allowed in non CharField fields'.format(lookup))
                 operator_formater['v'] = field.sanitize_data(v)[1:-1]
             else:
-                if isinstance(v, (list, tuple)):
+                if isinstance(field, ArrayField):
+                    v = ','.join(str(field.sanitize_data(si)) for si in v) + 'ALL' + '({0})'.format(field.name)
+                elif isinstance(v, (list, tuple)):
                     # check they are correct items and serialize
                     v = ','.join([str(field.sanitize_data(si)) for si in v])
                 else:

@@ -73,8 +73,6 @@ class BaseModel(object, metaclass=ModelMeta):
         self.migrations_dir = os.path.join(self.dir_name, 'migrations')
         os.makedirs(self.migrations_dir, exist_ok=True)
 
-        self.table_name = ''
-
         self.objects.model = self.__class__
 
         manager = getattr(self, 'objects')
