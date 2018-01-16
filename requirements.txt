@@ -1,2 +1,3 @@
 asyncpg==0.14.0
 netaddr==0.7.19
+asyncio-contextmanager==1.0.1
