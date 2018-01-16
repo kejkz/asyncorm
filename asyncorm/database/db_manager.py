@@ -1,3 +1,5 @@
+import asyncpg
+from aiocontext import async_contextmanager
 from asyncorm.log import logger
 
 
@@ -52,7 +54,12 @@ class GeneralManager(object):
 
     def __init__(self, conn_data):
         self.conn_data = conn_data
-        self.conn = None
+        self.pool = None
+
+    async def get_pool(self):
+        if not self.pool:
+            self.pool = await asyncpg.create_pool(**self.conn_data)
+        return self.pool
 
     @property
     def db__create_table(self):
@@ -203,15 +210,14 @@ class GeneralManager(object):
 
 class PostgresManager(GeneralManager):
 
+    @async_contextmanager
     async def get_conn(self):
-        import asyncpg
-        if not self.conn:
-            pool = await asyncpg.create_pool(**self.conn_data)
-            self.conn = await pool.acquire()
-        return self.conn
+        pool = await self.get_pool()
+        conn = await pool.acquire()
+        yield conn
+        await pool.release(conn)
 
     async def request(self, query):
-        conn = await self.get_conn()
-
-        async with conn.transaction():
-            return await conn.fetchrow(query)
+        async with self.get_conn() as conn:
+            async with conn.transaction():
+                return await conn.fetchrow(query)

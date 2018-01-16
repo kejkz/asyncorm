@@ -432,20 +432,19 @@ class Queryset(object):
             if key < 0:
                 raise QuerysetError('Negative indices are not allowed')
 
-            conn = await self.db_manager.get_conn()
+            async with self.db_manager.get_conn() as conn:
+                cursor = self._cursor
+                if not cursor:
+                    query = self.db_manager.construct_query(deepcopy(self.query))
+                    cursor = Cursor(
+                        conn,
+                        query,
+                        forward=key,
+                    )
 
-            cursor = self._cursor
-            if not cursor:
-                query = self.db_manager.construct_query(deepcopy(self.query))
-                cursor = Cursor(
-                    conn,
-                    query,
-                    forward=key,
-                )
-
-            async for res in cursor:
-                return self.modelconstructor(res)
-            raise IndexError('That {} index does not exist'.format(self.model.__name__))
+                async for res in cursor:
+                    return self.modelconstructor(res)
+                raise IndexError('That {} index does not exist'.format(self.model.__name__))
 
         else:
             raise TypeError("Invalid argument type.")
@@ -455,19 +454,19 @@ class Queryset(object):
 
     async def __anext__(self):
         if not self._cursor:
-            conn = await self.db_manager.get_conn()
-            query = self.db_manager.construct_query(self.query)
-            self._cursor = Cursor(
-                conn,
-                query,
-                forward=self.forward,
-                stop=self.stop,
-            )
+            async with self.db_manager.get_conn() as conn:
+                query = self.db_manager.construct_query(self.query)
+                self._cursor = Cursor(
+                    conn,
+                    query,
+                    forward=self.forward,
+                    stop=self.stop,
+                )
 
-        async for rec in self._cursor:
-            item = self.modelconstructor(rec)
-            return item
-        raise StopAsyncIteration()
+            async for rec in self._cursor:
+                item = self.modelconstructor(rec)
+                return item
+            raise StopAsyncIteration()
 
 
 class ModelManager(Queryset):
